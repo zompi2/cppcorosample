@@ -4,18 +4,18 @@ Just to be clear: this is a Work In Progress document :)
 
 # C++20 coroutine samples
 
-This is my understanding of [c++20 coroutines](https://en.cppreference.com/w/cpp/language/coroutines) with some sample code.  
-I've written this document to help others to understand what the coroutines are, how to write them and when they are useful. 
-
-# About contribution to this doc
-
-
+This is my understanding of [c++20 coroutines](https://en.cppreference.com/w/cpp/language/coroutines) with some samples.  
+I've written this document to help others (and myself) to understand what the coroutines are, how to write them in c++ and when they are useful.   
+This form of a documentation was inspired by other github manuals about other technologies, like unreal [GAS](https://github.com/tranek/GASDocumentation) and [MASS](https://github.com/Megafunk/MassSample).  
+I wanted to create a collaborative document which should be easier to understand and to learn from than the official cpp reference, which I personally treat as a very good api reference, but not a good "learn the basics" material.  
+If you notice any issue or have any idea how to improve the following examples feel free to write an issue or make a pull request.
 
 # Index
 * [What is a coroutine](#what-is-a-coroutine)
 * [The simpliest C++ coroutine example possible](#the-simpliest-c-coroutine-example-possible)
 * [Coroutine Tasks](#coroutine-tasks)
 * [Generators - coroutines returning values](#generators---coroutines-returning-values)
+* [Camera Fade Out for Unreal Engine 5](#camera-fade-out-for-unreal-engine-5)
 
 # What is a coroutine?
 
@@ -113,7 +113,7 @@ This is a structure based on the `std::coroutine_handle`. It controls the flow o
 
 ## Coroutine Promise
 The Promise structure contains a configuration of the coroutine, which defines how it should behave. The absolute minimum that must be defined here are:
-* `get_return_object` - function which constructs the coroutine handle. You can always use the code from the example.
+* `get_return_object` - function which constructs the coroutine handle.
 * `initial_suspend` - can return:
     * `suspend_never` - the function will not be suspended right at the beginning and it will be suspended when the `co_await` or `co_yield` is used.
     * `suspend_always` - the function will be suspended right at the beginning and it must be resumed to even start.
@@ -333,7 +333,7 @@ As you can see the promise is defined inside the generator struct in order to ke
 The generator itself has few interesting parts as well:
 * `Handle` - this is the coroutine handle stored from the generator constructor.
 * `operator bool()` - is very handy for resuming the coroutine and checking if the coroutine has finished. To check if coroutine is done we use `done()` function on the coroutine handle. We can use it safely, because the `final_suspend` is set to `suspend_always`, so the coroutine handle will not be destroyed automatically when the function is finished.
-* `oprtator()` -  will be used to get a stored value from the promise.
+* `operator()` -  will be used to get a stored value from the promise.
 
 ## Fibonacci Generator
 Our `FibonacciGenerator` function returns our Generator which stores the `int` value. Every next value of the Fibonacci sequence is yielded, which means the function is suspended and the value is stored.
@@ -343,6 +343,74 @@ When our Generator is constructed it automatically suspends, because of the `ini
 
 [Back to index](#index)
 
+# Camera Fade Out for Unreal Engine 5
+[At the beginning of this document](#coroutines-in-other-languages) I showed the example of coroutine used in Unity game engine to fade out the camera. Let's write the same functionality but for Unreal Engine 5.3 which officially supports C++20, so it should be possible to implement it.
 
+This code is also inside the `Samples` directory here: [04_CoroUE5FadeOut.cpp](Samples/04_CoroUE5FadeOut.cpp)
 
+```c++
+#include <coroutine>
+#include "Kismet/GameplayStatics.h"
 
+struct CoroPromise;
+struct CoroHandle : std::coroutine_handle<CoroPromise>
+{
+    using promise_type = ::CoroPromise;
+};
+
+struct CoroPromise
+{
+    CoroHandle get_return_object() { return { CoroHandle::from_promise(*this) }; }
+    std::suspend_never initial_suspend() noexcept { return {}; }
+    std::suspend_never final_suspend() noexcept { return {}; }
+    void return_void() {}
+    void unhandled_exception() {}
+};
+
+class WaitSecondsTask
+{
+public:
+
+    float TimeRemaining;
+    std::coroutine_handle<CoroPromise> Handle;
+    FTSTicker::FDelegateHandle TickerHandle;
+
+    WaitSecondsTask(float DelayTime) : TimeRemaining(DelayTime) {}
+
+    void await_resume() {}
+    bool await_ready() { return TimeRemaining <= 0.f; }
+    void await_suspend(std::coroutine_handle<CoroPromise> CoroHandle)
+    {
+        Handle = CoroHandle;
+        TickerHandle = FTSTicker::GetCoreTicker().AddTicker(TEXT("CoroWaitSeconds"), 0.f, [this](float DeltaTime) -> bool
+        {
+            TimeRemaining -= DeltaTime;
+            if (TimeRemaining <= 0.f)
+            {
+                FTSTicker::GetCoreTicker().RemoveTicker(TickerHandle);
+                Handle.resume();
+            }
+            return true;
+        });
+    };
+};
+
+CoroHandle CoroFadeOut()
+{
+    if (GWorld)
+    {
+        APlayerCameraManager* CameraManager = UGameplayStatics::GetPlayerCameraManager(GWorld, 0);
+        if (CameraManager)
+        {
+            for (float Fade = 0.f; Fade <= 1.f; Fade += .1f)
+            {
+                CameraManager->SetManualCameraFade(Fade, FColor::Black, false);
+                co_await WaitSecondsTask(.1f);
+            }
+            CameraManager->SetManualCameraFade(1.f, FColor::Black, false);
+        }
+    }
+}
+```
+
+TODO
