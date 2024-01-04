@@ -51,6 +51,8 @@ Function is a coroutine in C++ when there is one of the following keywords insid
 
 This is (probably) the most simple c++ coroutine example possible. There is a lot of happening there, but it will all be explained below.
 
+This code is also inside the `Samples` directory here: [01_CoroSimpleExample.cpp](Samples/01_CoroSimpleExample.cpp)
+
 ```c++
 #include <iostream>
 #include <coroutine>
@@ -127,6 +129,9 @@ Ok, we have a very simple coroutine defined, but how do we use it? In our exampl
 
 # Generators - coroutines returning values
 Just suspending a running function is neat, but we can do more. Coroutines can be written in such manners that they can store values which can be used later. Such coroutines are called generators. Let's write a generic generator and then use it to write a coroutine which will get us a beloved Fibonacci sequence.
+
+This code is also inside the `Samples` directory here: [02_CoroGenerators.cpp](Samples/02_CoroGenerators.cpp)
+
 
 ```c++
 #include <iostream>
