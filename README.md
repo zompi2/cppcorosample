@@ -14,8 +14,8 @@ I've written this document to help others to understand what the coroutines are,
 # Index
 * [What is a coroutine](#what-is-a-coroutine)
 * [The simpliest C++ coroutine example possible](#the-simpliest-c-coroutine-example-possible)
-* [Generators - coroutines returning values](#generators---coroutines-returning-values)
 * [Coroutine Tasks](#coroutine-tasks)
+* [Generators - coroutines returning values](#generators---coroutines-returning-values)
 
 # What is a coroutine?
 
@@ -46,6 +46,8 @@ Function is a coroutine in C++ when there is one of the following keywords insid
 * `co_await` - it simply suspends the function
 * `co_yield` - it suspends the function and it returns a value
 * `co_return` - it completes the function with or without a value
+
+[Back to index](#index)
 
 # The simpliest C++ coroutine example possible
 
@@ -127,10 +129,103 @@ Ok, we have a very simple coroutine defined, but how do we use it? In our exampl
 
 [Back to index](#index)
 
+# Coroutine Tasks
+Coroutine Tasks are the elegant way to define different coroutine Handles using the same Handle base and Promise, reducing the amount of boilerplate code you need to write.
+
+The code below implements two different tasks: `CoroTaskA` and `CoroTaskB`. They can be called when using `co_await` in the same coroutine which returns the same type of Handle.
+
+Tasks are also more elegant as they are defined using the class, so they allow better code encapsulation.
+
+This code is also inside the `Samples` directory here: [02_CoroTasks.cpp](Samples/02_CoroTasksExample.cpp)
+
+```c++
+#include <iostream>
+#include <coroutine>
+
+struct CoroPromise;
+struct CoroHandle : std::coroutine_handle<CoroPromise>
+{
+    using promise_type = ::CoroPromise;
+};
+
+struct CoroPromise
+{
+    CoroHandle get_return_object() { return { CoroHandle::from_promise(*this) }; }
+    std::suspend_never initial_suspend() noexcept { return {}; }
+    std::suspend_never final_suspend() noexcept { return {}; }
+    void return_void() {}
+    void unhandled_exception() {}
+};
+
+class CoroTaskBase
+{
+public:
+    void await_resume() {}
+    bool await_ready() { return false; }
+};
+
+class CoroTaskA : public CoroTaskBase
+{
+public:
+    void await_suspend(std::coroutine_handle<CoroPromise> Handle)
+    {
+        std::cout << "Suspended Using Task A\n";
+    };
+};
+
+class CoroTaskB : public CoroTaskBase
+{
+public:
+    void await_suspend(std::coroutine_handle<CoroPromise> Handle)
+    {
+        std::cout << "Suspended Using Task B\n";
+    };
+};
+
+CoroHandle CoroTest()
+{
+    std::cout << "CoroTest Before Suspend\n";
+    co_await CoroTaskA();
+    std::cout << "CoroTest After First Resume\n";
+    co_await CoroTaskB();
+    std::cout << "CoroTest After Second Resume\n";
+}
+
+int main()
+{
+    CoroHandle handle = CoroTest();
+    std::cout << "CoroTest First Resuming\n";
+    handle.resume();
+    std::cout << "CoroTest Second Resuming\n";
+    handle.resume();
+    return 0;
+}
+```
+
+The output of this code will be:
+
+```
+CoroTest Before Suspend
+Suspended Using Task A
+CoroTest First Resuming
+CoroTest After First Resume
+Suspended Using Task B
+CoroTest Second Resuming
+CoroTest After Second Resume
+```
+
+The Promise definition is the same as previously. The coroutine Handle has been split into two parts:
+* the definition of the coroutine Handle which uses the defined Promise
+* the definition of tasks which implements the Handle functions such as `await_resume`, `await_ready` and `await_suspend`.
+
+As you can see in this example we can call different tasks inside the same coroutine function.
+
+[Back to index](#index)
+
 # Generators - coroutines returning values
 Just suspending a running function is neat, but we can do more. Coroutines can be written in such manners that they can store values which can be used later. Such coroutines are called generators. Let's write a generic generator and then use it to write a coroutine which will get us a beloved Fibonacci sequence.
 
-This code is also inside the `Samples` directory here: [02_CoroGenerators.cpp](Samples/02_CoroGenerators.cpp)
+This code is also inside the `Samples` directory here: [03_CoroGenerators.cpp](Samples/03_CoroGenerators.cpp)
 
 
 ```c++
@@ -248,85 +343,6 @@ When our Generator is constructed it automatically suspends, because of the `ini
 
 [Back to index](#index)
 
-# Coroutine Tasks
 
-You can define different classes with different `await_suspend` functionalities, all based on the same handle and promise. It is useful if you wan't to have multiple coroutine suspension behaviour in the same  coroutine. I like to call such classes Coroutine Tasks.
-
-```c++
-#include <iostream>
-#include <coroutine>
-
-struct CoroPromise;
-struct CoroHandle : std::coroutine_handle<CoroPromise>
-{
-    using promise_type = ::CoroPromise;
-};
-
-struct CoroPromise
-{
-    CoroHandle get_return_object() { return { CoroHandle::from_promise(*this) }; }
-    std::suspend_never initial_suspend() noexcept { return {}; }
-    std::suspend_never final_suspend() noexcept { return {}; }
-    void return_void() {}
-    void unhandled_exception() {}
-};
-
-class CoroTask1
-{
-public:
-
-    void await_resume() {}
-    bool await_ready() { return false; }
-    void await_suspend(std::coroutine_handle<CoroPromise> Handle)
-    {
-        std::cout << "Suspended Using Task 1\n";
-    };
-};
-
-class CoroTask2
-{
-public:
-
-    void await_resume() {}
-    bool await_ready() { return false; }
-    void await_suspend(std::coroutine_handle<CoroPromise> Handle)
-    {
-        std::cout << "Suspended Using Task 2\n";
-    };
-};
-
-CoroHandle CoroTest()
-{
-    std::cout << "CoroTest Before Suspend\n";
-    co_await CoroTask1();
-    std::cout << "CoroTest After First Resume\n";
-    co_await CoroTask2();
-    std::cout << "CoroTest After Second Resume\n";
-}
-
-int main()
-{
-    CoroHandle handle = CoroTest();
-    std::cout << "CoroTest First Resuming\n";
-    handle.resume();
-    std::cout << "CoroTest Second Resuming\n";
-    handle.resume();
-    return 0;
-}
-```
-
-The output of this code will be:
-
-```
-CoroTest Before Suspend
-Suspended Using Task 1
-CoroTest First Resuming
-CoroTest After First Resume
-Suspended Using Task 2
-CoroTest Second Resuming
-CoroTest After Second Resume
-```
-
-[Back to index](#index)
 
 
