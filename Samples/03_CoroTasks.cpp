@@ -1,4 +1,7 @@
-// Copyright (c) 2023 Damian Nowakowski. All rights reserved.
+// Copyright (c) 2024 Damian Nowakowski. All rights reserved.
+
+// This is the example of c++ coroutine tasks.
+// For more details check: https://github.com/zompi2/cppcorosample
 
 #include <iostream>
 #include <coroutine>

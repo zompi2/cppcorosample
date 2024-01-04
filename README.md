@@ -1,4 +1,5 @@
 # WIP Alert!
+
 Just to be clear: this is a Work In Progress document :)
 
 # C++20 coroutine samples
@@ -6,7 +7,17 @@ Just to be clear: this is a Work In Progress document :)
 This is my understanding of [c++20 coroutines](https://en.cppreference.com/w/cpp/language/coroutines) with some sample code.  
 I've written this document to help others to understand what the coroutines are, how to write them and when they are useful. 
 
-## What is a coroutine?
+# About contribution to this doc
+
+
+
+# Index
+* [What is a coroutine](#what-is-a-coroutine)
+* [The simpliest C++ coroutine example possible](#the-simpliest-c-coroutine-example-possible)
+* [Generators - coroutines returning values](#generators---coroutines-returning-values)
+* [Coroutine Tasks](#coroutine-tasks)
+
+# What is a coroutine?
 
 Coroutine is a function which execution can be suspended (without suspending the rest of the code) and it can be resumed later. Such functionality is very useful if we have a function that needs to wait for something, for example for the response from http request or for the result of the other function that runs on another thread.  
 We can use delegates or lambdas instead of coroutines and have the same result, but having single line which can command the code to wait is more clear, readable and elegant solution.
@@ -36,7 +47,7 @@ Function is a coroutine in C++ when there is one of the following keywords insid
 * `co_yield` - it suspends the function and it returns a value
 * `co_return` - it completes the function with or without a value
 
-## The simpliest C++ coroutine example possible
+# The simpliest C++ coroutine example possible
 
 This is (probably) the most simple c++ coroutine example possible. There is a lot of happening there, but it will all be explained below.
 
@@ -89,14 +100,14 @@ CoroTest After Resume
 
 Now let's go through all of this from top to bottom. First of all we have to define the coroutine. The coroutine is made of two parts:
 
-### Coroutine Handle
+## Coroutine Handle
 This is a structure based on the `std::coroutine_handle`. It controls the flow of the coroutine and will be used to resume the suspended coroutine later. The absolute minimum which needs to be defined inside the handle are:
 * `promise_type` - it is a type of the Coroutine Promise. What is a Promise will be described later.
 * `await_resume` - this function is called when the coroutine is resumed.
 * `await_ready` - this function is called before the suspension. If it returns `false` (or `void`) the coroutine will be suspended. If it returns `true` it will ignore the suspension.
 * `await_suspend` - this function is called right after the suspension. It contains the actual instance of the handle of the suspended coroutine which might be stored and used later.
 
-### Coroutine Promise
+## Coroutine Promise
 The Promise structure contains a configuration of the coroutine, which defines how it should behave. The absolute minimum that must be defined here are:
 * `get_return_object` - function which constructs the coroutine handle. You can always use the code from the example.
 * `initial_suspend` - can return:
@@ -109,10 +120,12 @@ The Promise structure contains a configuration of the coroutine, which defines h
 * `return_void` - this function is called when the `co_return` is used. The `co_return` is called by default when the function reaches the end.
 * `unhandled_exception` - used to catch any exception. To get more details about the extepction use `std::current_exception()` function.
 
-### Using the coroutine
+## Using the coroutine
 Ok, we have a very simple coroutine defined, but how do we use it? In our example we can see a function, which returns our coroutine handle, the `CoroHandle`. It uses `co_await` keyword to suspend it's execution. In the `main` program we call this function and gets the `handle` to it. Later, we can use the `resume()` function of that handle to resume the suspended coroutine. And that's all!
 
-## Generators - coroutines returning values
+[Back to index](#index)
+
+# Generators - coroutines returning values
 Just suspending a running function is neat, but we can do more. Coroutines can be written in such manners that they can store values which can be used later. Such coroutines are called generators. Let's write a generic generator and then use it to write a coroutine which will get us a beloved Fibonacci sequence.
 
 ```c++
@@ -205,25 +218,32 @@ The output of this code will be:
 
 Once again, there is a lot to cover. Let's go through this step by step.
 
-### Coroutine Promise for Generator
+## Coroutine Promise for Generator
 The promise for a generator is slightly different. You can notice few differences:  
 * `T Value` - promise stores a value of a generic type. This value can be obtained later by a generator. It is  more conviniente to store it in promise rather than in handle because of one reason, which I will explain later.
 * `get_return_object` - doesn't return coroutine handle, but a generator with a coroutine handle passed as an argument to the constructor.
 * `initial_suspend` and `final_suspend` returns `suspend_always`. This is important, because only with such setup we have the ability to control the coroutine flow.
 * `yield_value` - this function is called every time when `co_yield` is used. It stores the given value to the `Value` variable and returns `suspend_always` in order to suspend the function. This function is the reason why we store a value inside the promise.
+* Constructor - accepts and remembers the coroutine handle. The generator construcor is used in `get_return_object` function.
+* Destructor - explicitly destroys the handle using `destroy()` function. It must be done, because the `final_suspend` is set to `suspend_always`.
 
-As you can see the promise is defined inside the generator struct in order to keep everything in one place and to avoid declaration infinite loop.
+As you can see the promise is defined inside the generator struct in order to keep everything in one place and to avoid declaration loop.
 
-### Generator
+## Generator
 The generator itself has few interesting parts as well:
 * `Handle` - this is the coroutine handle stored from the generator constructor.
 * `operator bool()` - is very handy for resuming the coroutine and checking if the coroutine has finished. To check if coroutine is done we use `done()` function on the coroutine handle. We can use it safely, because the `final_suspend` is set to `suspend_always`, so the coroutine handle will not be destroyed automatically when the function is finished.
 * `oprtator()` -  will be used to get a stored value from the promise.
 
-### Fibonacci Generator
-Our `FibonacciGenerator` function returns our Generator which stores the `int` value. 
+## Fibonacci Generator
+Our `FibonacciGenerator` function returns our Generator which stores the `int` value. Every next value of the Fibonacci sequence is yielded, which means the function is suspended and the value is stored.
 
-## Coroutine Tasks
+## Using Fibonacci Generator
+When our Generator is constructed it automatically suspends, because of the `initial_suspend` set to `suspend_always`. Inside the while loop the `operator bool()` override is used to resume the Generator and check if the coroutine has already finished. Inside the while loop the `operator()` override is used to get lastly yielded value.
+
+[Back to index](#index)
+
+# Coroutine Tasks
 
 You can define different classes with different `await_suspend` functionalities, all based on the same handle and promise. It is useful if you wan't to have multiple coroutine suspension behaviour in the same  coroutine. I like to call such classes Coroutine Tasks.
 
@@ -302,5 +322,6 @@ CoroTest Second Resuming
 CoroTest After Second Resume
 ```
 
+[Back to index](#index)
 
 
