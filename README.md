@@ -1,7 +1,3 @@
-# WIP Alert!
-
-Just to be clear: this is a Work In Progress document :)
-
 # C++20 coroutine samples
 
 This is my understanding of [c++20 coroutines](https://en.cppreference.com/w/cpp/language/coroutines) with some samples.  
@@ -369,13 +365,13 @@ struct CoroPromise
 
 class WaitSecondsTask
 {
-public:
-
+private:
     float TimeRemaining;
     std::coroutine_handle<CoroPromise> Handle;
     FTSTicker::FDelegateHandle TickerHandle;
 
-    WaitSecondsTask(float DelayTime) : TimeRemaining(DelayTime) {}
+public:
+    WaitSecondsTask(float Time) : TimeRemaining(Time) {}
 
     void await_resume() {}
     bool await_ready() { return TimeRemaining <= 0.f; }
@@ -398,19 +394,32 @@ public:
 CoroHandle CoroFadeOut()
 {
     if (GWorld)
-    {
-        APlayerCameraManager* CameraManager = UGameplayStatics::GetPlayerCameraManager(GWorld, 0);
-        if (CameraManager)
-        {
-            for (float Fade = 0.f; Fade <= 1.f; Fade += .1f)
-            {
-                CameraManager->SetManualCameraFade(Fade, FColor::Black, false);
-                co_await WaitSecondsTask(.1f);
-            }
-            CameraManager->SetManualCameraFade(1.f, FColor::Black, false);
-        }
-    }
+	{
+		APlayerCameraManager* CameraManager = UGameplayStatics::GetPlayerCameraManager(GWorld, 0);
+		for (int32 Fade = 0; Fade <= 100; Fade += 10)
+		{
+			if (IsValid(CameraManager))
+			{
+				CameraManager->SetManualCameraFade((float)Fade * .01f, FColor::Black, false);
+			}
+			co_await CoroWaitSeconds(.1f);
+		}
+	}
 }
 ```
 
-TODO
+The Handle and the Promise are the same as usual. To make it work we need a coroutine Task, which will suspend the coroutine for a given amount of time and the actual coroutine which will fade out the camera.
+
+## Wait Seconds Task
+This is a specific case of a coroutine Task which resumes itself. It must somehow receive the coroutine Handle and the amount of seconds we want to wait.  
+The time to wait is passed as an argument in the constructor.  
+The coroutine Handle is obtained from the `await_suspend` function.  
+The `await_suspend` function starts the Unreal Engine ticker which will resume the suspended coroutine using the received Handle.
+
+## Fade Out function
+The fade out function changes the camera fade in a for loop in 10 steps every 0.1 second. You can notice the `co_await CoroWaitSeconds(.1f)` after every loop, which triggers our waiting coroutine Task.
+
+## More coroutines for UE5
+If you are interested witch coroutines implementation for Unreal Engine 5 check out the amazing plugin [UE5Coro](https://github.com/landelare/ue5coro). Coroutines are also implemented in my UE plugin [Enhanced Code Flow](https://github.com/zompi2/UE4EnhancedCodeFlow) as well :)
+
+[Back to index](#index)
