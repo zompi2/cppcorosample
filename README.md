@@ -1,14 +1,14 @@
 # C++20 coroutine samples
 
-This is my understanding of [c++20 coroutines](https://en.cppreference.com/w/cpp/language/coroutines) with some samples.  
-I've written this document to help others (and myself) to understand what the coroutines are, how to write them in c++ and when they are useful.   
-This form of a documentation was inspired by other github manuals about other technologies, like unreal [GAS](https://github.com/tranek/GASDocumentation) and [MASS](https://github.com/Megafunk/MassSample).  
+This is my understanding of [C++20 coroutines](https://en.cppreference.com/w/cpp/language/coroutines) with some samples.  
+I've written this document to help others (and myself) to understand what are the coroutines, how to write them in C++ and when they are useful.   
+This form of a documentation was inspired by the other github manuals, like [GAS](https://github.com/tranek/GASDocumentation) and [MASS](https://github.com/Megafunk/MassSample).  
 I wanted to create a collaborative document which should be easier to understand and to learn from than the official cpp reference, which I personally treat as a very good api reference, but not a good "learn the basics" material.  
 If you notice any issue or have any idea how to improve the following examples feel free to write an issue or make a pull request.
 
 # Index
 * [What is a coroutine](#what-is-a-coroutine)
-* [The simpliest C++ coroutine example possible](#the-simpliest-c-coroutine-example-possible)
+* [The simpliest c++ coroutine example possible](#the-simpliest-c-coroutine-example-possible)
 * [Coroutine Tasks](#coroutine-tasks)
 * [Generators - coroutines returning values](#generators---coroutines-returning-values)
 * [Camera Fade Out for Unreal Engine 5](#camera-fade-out-for-unreal-engine-5)
@@ -16,11 +16,11 @@ If you notice any issue or have any idea how to improve the following examples f
 # What is a coroutine?
 
 Coroutine is a function which execution can be suspended (without suspending the rest of the code) and it can be resumed later. Such functionality is very useful if we have a function that needs to wait for something, for example for the response from http request or for the result of the other function that runs on another thread.  
-We can use delegates or lambdas instead of coroutines and have the same result, but having single line which can command the code to wait is more clear, readable and elegant solution.
+Sure, we can use delegates, or lambdas instead of coroutines and get the similar behaviour, but having single line which can command the code to wait is more clear, readable and elegant solution.
 
 ## Coroutines in other languages
 
-Coroutines have been a part of other languages for a long time, for example in C#. One of the most famous example is a code for [camera fade out for Unity game engine](https://docs.unity3d.com/Manual/Coroutines.html).
+Coroutines have been a part of other languages for a long time, for example in C#. One of the most famous example is the code for [camera fade out for Unity game engine](https://docs.unity3d.com/Manual/Coroutines.html).
 
 ```cs
 IEnumerator Fade()
@@ -35,21 +35,21 @@ IEnumerator Fade()
 }
 ```
 
-Normally the for-loop would simply set the material alpha to 0, but because this is a coroutine it will wait for 0.1 seconds after each for-loop iteration which will lead to a fluid change of the material alpha. We can recognize that this is a coroutine because of the presence of the `yield` keyword. The `yield` suspends the whole function while the Unity built in coroutines system will resume it.
+Normally the for-loop would simply set the material alpha to 0, but because this is a coroutine it will wait for 0.1 seconds after each for-loop iteration which will lead to a fluid and visible change of the material alpha. We can recognize that this is a coroutine because of the presence of the `yield` keyword. The `yield` suspends the whole function while the Unity built in coroutines system will resume it.
 
-## Coroutine in C++
+## Coroutines in C++
 Function is a coroutine in C++ when there is one of the following keywords inside:
 * `co_await` - it simply suspends the function
-* `co_yield` - it suspends the function and it returns a value
-* `co_return` - it completes the function with or without a value
+* `co_yield` - it suspends the function and returns a value
+* `co_return` - it completes the function with or without returning a value
 
 [Back to index](#index)
 
 # The simpliest C++ coroutine example possible
 
-This is (probably) the most simple c++ coroutine example possible. There is a lot of happening there, but it will all be explained below.
+This is (probably) the most simple C++ coroutine example possible. There is still a lot of happening there, but all of it will be explained below.
 
-This code is also inside the `Samples` directory here: [01_CoroSimpleExample.cpp](Samples/01_CoroSimpleExample.cpp)
+This code with comments is also inside the `Samples` directory here: [01_CoroSimpleExample.cpp](Samples/01_CoroSimpleExample.cpp)
 
 ```c++
 #include <iostream>
@@ -101,10 +101,11 @@ CoroTest After Resume
 Now let's go through all of this from top to bottom. First of all we have to define the coroutine. The coroutine is made of two parts:
 
 ## Coroutine Handle
-This is a structure based on the `std::coroutine_handle`. It controls the flow of the coroutine and will be used to resume the suspended coroutine later. The absolute minimum which needs to be defined inside the handle are:
-* `promise_type` - it is a type of the Coroutine Promise. What is a Promise will be described later.
+This is a structure based on the `std::coroutine_handle`. It controls the flow of the coroutine and will be used to resume the suspended coroutine later. The absolute minimum which needs to be defined inside the Handle are:
+* `promise_type` - this is a type of the coroutine Promise. What is a Promise will be explained later.
 * `await_resume` - this function is called when the coroutine is resumed.
-* `await_ready` - this function is called before the suspension. If it returns `false` (or `void`) the coroutine will be suspended. If it returns `true` it will ignore the suspension.
+* `await_ready` - this function is called before the coroutine suspension. If it returns `false` the coroutine will be suspended. If it returns `true` it will ignore the suspension.
+    > Note: You can also write `void await_ready() {}` and it will behave the same as if it return `false`.
 * `await_suspend` - this function is called right after the suspension. It contains the actual instance of the handle of the suspended coroutine which might be stored and used later.
 
 ## Coroutine Promise
@@ -116,12 +117,12 @@ The Promise structure contains a configuration of the coroutine, which defines h
 * `final_suspend` - can return:
     * `suspend_never` - the function will not be suspended at the end of the function. The coroutine will be destroyed right after the function has finished.
     * `suspend_always` - the function will be suspended at the end. You must call `destroy()` function on the handle manually. Only with this setting you can check if the coroutine has finished by using the `done()` function on the handle.
-> `initial_suspend` and `final_suspend` are the most important functions here, as they can control when the coroutine can be safely destroyed. We will utilize these functions later in more advanced coroutines.
+    > Note: `initial_suspend` and `final_suspend` are one of the most important functions here, as they can control when the coroutine can be safely destroyed. We will utilize these functions later in more advanced coroutines.
 * `return_void` - this function is called when the `co_return` is used. The `co_return` is called by default when the function reaches the end.
-* `unhandled_exception` - used to catch any exception. To get more details about the extepction use `std::current_exception()` function.
+* `unhandled_exception` - used to catch any exception. To get more details about the catched extepction use `std::current_exception()` function.
 
 ## Using the coroutine
-Ok, we have a very simple coroutine defined, but how do we use it? In our example we can see a function, which returns our coroutine handle, the `CoroHandle`. It uses `co_await` keyword to suspend it's execution. In the `main` program we call this function and gets the `handle` to it. Later, we can use the `resume()` function of that handle to resume the suspended coroutine. And that's all!
+Ok, we have a very simple coroutine defined, but how do we use it? In our example we have a function, which returns our coroutine handle, the `CoroHandle`. It uses `co_await` keyword to suspend it's execution. In the `main` program we call this function and gets the `handle` to it. Later, we can use the `resume()` function on that handle to resume the suspended coroutine. And that's all!
 
 [Back to index](#index)
 
@@ -130,9 +131,9 @@ Coroutine Tasks are the elegant way to define different coroutine Handles using 
 
 The code below implements two different tasks: `CoroTaskA` and `CoroTaskB`. They can be called when using `co_await` in the same coroutine which returns the same type of Handle.
 
-Tasks are also more elegant as they are defined using the class, so they allow better code encapsulation.
+Tasks are defined using the class instead of structs, so they allow better code encapsulation.
 
-This code is also inside the `Samples` directory here: [02_CoroTasks.cpp](Samples/02_CoroTasksExample.cpp)
+This code with comments is also inside the `Samples` directory here: [02_CoroTasks.cpp](Samples/02_CoroTasksExample.cpp)
 
 ```c++
 #include <iostream>
@@ -212,16 +213,16 @@ CoroTest After Second Resume
 
 The Promise definition is the same as previously. The coroutine Handle has been split into two parts:
 * the definition of the coroutine Handle which uses the defined Promise
-* the definition of tasks which implements the Handle functions such as `await_resume`, `await_ready` and `await_suspend`.
+* the definition of Tasks which implements the Handle functions such as `await_resume`, `await_ready` and `await_suspend`.
 
-As you can see in this example we can call different tasks inside the same coroutine function.
+As you can see in this example we can call different Tasks inside the same coroutine function.
 
 [Back to index](#index)
 
 # Generators - coroutines returning values
-Just suspending a running function is neat, but we can do more. Coroutines can be written in such manners that they can store values which can be used later. Such coroutines are called generators. Let's write a generic generator and then use it to write a coroutine which will get us a beloved Fibonacci sequence.
+Just suspending a running function is neat, but we can do more. Coroutines can be written in such way that they can store values which can be used later. Such coroutines are called Generators. Let's write a generic Generator and then use it to write a coroutine which will give us every value of the beloved Fibonacci sequence one by one.
 
-This code is also inside the `Samples` directory here: [03_CoroGenerators.cpp](Samples/03_CoroGenerators.cpp)
+This code with comments is also inside the `Samples` directory here: [03_CoroGenerators.cpp](Samples/03_CoroGenerators.cpp)
 
 
 ```c++
@@ -315,24 +316,24 @@ The output of this code will be:
 Once again, there is a lot to cover. Let's go through this step by step.
 
 ## Coroutine Promise for Generator
-The promise for a generator is slightly different. You can notice few differences:  
-* `T Value` - promise stores a value of a generic type. This value can be obtained later by a generator. It is  more conviniente to store it in promise rather than in handle because of one reason, which I will explain later.
-* `get_return_object` - doesn't return coroutine handle, but a generator with a coroutine handle passed as an argument to the constructor.
-* `initial_suspend` and `final_suspend` returns `suspend_always`. This is important, because only with such setup we have the ability to control the coroutine flow.
-* `yield_value` - this function is called every time when `co_yield` is used. It stores the given value to the `Value` variable and returns `suspend_always` in order to suspend the function. This function is the reason why we store a value inside the promise.
-* Constructor - accepts and remembers the coroutine handle. The generator construcor is used in `get_return_object` function.
-* Destructor - explicitly destroys the handle using `destroy()` function. It must be done, because the `final_suspend` is set to `suspend_always`.
+The Promise for a Generator is slightly different. You can notice few differences:  
+* `T Value` - Promise stores a value of a generic type. This value can be obtained later by a Generator.
+* `get_return_object` - doesn't return coroutine Handle, but a Generator with a coroutine Handle passed as an argument to the constructor.
+* `initial_suspend` and `final_suspend` returns `suspend_always`. This is important, because with such setup we have the full control over the coroutine flow.
+* `yield_value` - this function is called every time when `co_yield` is used. It stores the given value to the `Value` variable and returns `suspend_always` in order to suspend the function.
 
-As you can see the promise is defined inside the generator struct in order to keep everything in one place and to avoid declaration loop.
+The Promise is defined inside the Generator struct in order to keep everything in one place and to avoid declaration loop.
 
 ## Generator
 The generator itself has few interesting parts as well:
-* `Handle` - this is the coroutine handle stored from the generator constructor.
-* `operator bool()` - is very handy for resuming the coroutine and checking if the coroutine has finished. To check if coroutine is done we use `done()` function on the coroutine handle. We can use it safely, because the `final_suspend` is set to `suspend_always`, so the coroutine handle will not be destroyed automatically when the function is finished.
-* `operator()` -  will be used to get a stored value from the promise.
+* `Handle` - this is the coroutine Handle saved from the Generator constructor.
+* `operator bool()` - is very handy for resuming the coroutine and checking if the coroutine has finished. To check if the coroutine is done we use `done()` function on the coroutine Handle. We can use it safely, because the `final_suspend` is set to `suspend_always`, so the coroutine Handle will not be destroyed automatically when the function is finished.
+* `operator()` -  will be used to get a stored value from the Promise.
+* Constructor - receives and remembers the coroutine Handle. The Generator construcor is used in `get_return_object` function in the Promise.
+* Destructor - explicitly destroys the coroutine Handle using `destroy()` function. It must be used, because the `final_suspend` is set to `suspend_always`, so it won't be destroyed automatically.
 
 ## Fibonacci Generator
-Our `FibonacciGenerator` function returns our Generator which stores the `int` value. Every next value of the Fibonacci sequence is yielded, which means the function is suspended and the value is stored.
+`FibonacciGenerator` function returns the Generator which stores the `int` value. Every next value of the Fibonacci sequence is yielded, which means the function is suspended and the value is stored.
 
 ## Using Fibonacci Generator
 When our Generator is constructed it automatically suspends, because of the `initial_suspend` set to `suspend_always`. Inside the while loop the `operator bool()` override is used to resume the Generator and check if the coroutine has already finished. Inside the while loop the `operator()` override is used to get lastly yielded value.
@@ -340,9 +341,9 @@ When our Generator is constructed it automatically suspends, because of the `ini
 [Back to index](#index)
 
 # Camera Fade Out for Unreal Engine 5
-[At the beginning of this document](#coroutines-in-other-languages) I showed the example of coroutine used in Unity game engine to fade out the camera. Let's write the same functionality but for Unreal Engine 5.3 which officially supports C++20, so it should be possible to implement it.
+[At the beginning of this document](#coroutines-in-other-languages) I showed the example of the coroutine used in Unity game engine to fade out the camera. Let's write the same functionality but for Unreal Engine 5.3 which officially supports C++20, so it should be possible to implement it.
 
-This code is also inside the `Samples` directory here: [04_CoroUE5FadeOut.cpp](Samples/04_CoroUE5FadeOut.cpp)
+This code with comments is also inside the `Samples` directory here: [04_CoroUE5FadeOut.cpp](Samples/04_CoroUE5FadeOut.cpp)
 
 ```c++
 #include <coroutine>
@@ -414,12 +415,14 @@ The Handle and the Promise are the same as usual. To make it work we need a coro
 This is a specific case of a coroutine Task which resumes itself. It must somehow receive the coroutine Handle and the amount of seconds we want to wait.  
 The time to wait is passed as an argument in the constructor.  
 The coroutine Handle is obtained from the `await_suspend` function.  
-The `await_suspend` function starts the Unreal Engine ticker which will resume the suspended coroutine using the received Handle.
+The `await_suspend` function starts the Unreal Engine ticker which will resume the suspended coroutine using the received coroutine Handle.
 
 ## Fade Out function
-The fade out function changes the camera fade in a for loop in 10 steps every 0.1 second. You can notice the `co_await CoroWaitSeconds(.1f)` after every loop, which triggers our waiting coroutine Task.
+The fade out function changes the camera fade in a for loop in 10 steps every 0.1 second. You can notice the `co_await CoroWaitSeconds(.1f)` after every loop iteration, which triggers our waiting coroutine Task.
+
+In order to use this function, simply call it in your project.
 
 ## More coroutines for UE5
-If you are interested witch coroutines implementation for Unreal Engine 5 check out the amazing plugin [UE5Coro](https://github.com/landelare/ue5coro). Coroutines are also implemented in my UE plugin [Enhanced Code Flow](https://github.com/zompi2/UE4EnhancedCodeFlow) as well :)
+If you are interested witch coroutines implementation for Unreal Engine 5 check out this amazing plugin [UE5Coro](https://github.com/landelare/ue5coro). Coroutines are also implemented in my UE plugin [Enhanced Code Flow](https://github.com/zompi2/UE4EnhancedCodeFlow) as well :)
 
 [Back to index](#index)
