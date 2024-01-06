@@ -1,7 +1,7 @@
 # C++20 coroutine samples
 
 This is my understanding of [C++20 coroutines](https://en.cppreference.com/w/cpp/language/coroutines) with some samples.  
-I've written this document to help others (and myself) to understand what are the coroutines, how to write them in C++ and when they are useful.   
+I've written this document to help others (and myself) to understand what coroutines are, how to write them in C++ and when they are useful.   
 This form of a documentation was inspired by the other github manuals, like [GAS](https://github.com/tranek/GASDocumentation) and [MASS](https://github.com/Megafunk/MassSample).  
 I wanted to create a collaborative document which should be easier to understand and to learn from than the official cpp reference, which I personally treat as a very good api reference, but not a good "learn the basics" material.  
 If you notice any issue or have any idea how to improve the following examples feel free to write an issue or make a pull request.
@@ -15,7 +15,7 @@ If you notice any issue or have any idea how to improve the following examples f
 
 # What is a coroutine?
 
-Coroutine is a function which execution can be suspended (without suspending the rest of the code) and it can be resumed later. Such functionality is very useful if we have a function that needs to wait for something, for example for the response from http request or for the result of the other function that runs on another thread.  
+A coroutine is a function which execution can be suspended (without suspending the rest of the code) and it can be resumed later. Such functionality is very useful if we have a function that needs to wait for something, for example for the response from http request or for the result of the other function that runs on another thread.  
 Sure, we can use delegates, or lambdas instead of coroutines and get the similar behaviour, but having single line which can command the code to wait is more clear, readable and elegant solution.
 
 ## Coroutines in other languages
@@ -395,17 +395,17 @@ public:
 CoroHandle CoroFadeOut()
 {
     if (GWorld)
-	{
-		APlayerCameraManager* CameraManager = UGameplayStatics::GetPlayerCameraManager(GWorld, 0);
-		for (int32 Fade = 0; Fade <= 100; Fade += 10)
-		{
-			if (IsValid(CameraManager))
-			{
-				CameraManager->SetManualCameraFade((float)Fade * .01f, FColor::Black, false);
-			}
-			co_await CoroWaitSeconds(.1f);
-		}
-	}
+    {
+        APlayerCameraManager* CameraManager = UGameplayStatics::GetPlayerCameraManager(GWorld, 0);
+        for (int32 Fade = 0; Fade <= 100; Fade += 10)
+        {
+            if (IsValid(CameraManager))
+            {
+                CameraManager->SetManualCameraFade((float)Fade * .01f, FColor::Black, false);
+            }
+            co_await CoroWaitSeconds(.1f);
+        }
+    }
 }
 ```
 
