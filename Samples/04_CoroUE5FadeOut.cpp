@@ -88,17 +88,17 @@ CoroHandle CoroFadeOut()
     // Warning, there will be velociraptors: World should be obtained by a World Context Object,
     // but just for the example sake we use nasty GWorld.
     if (GWorld)
-	{
-		APlayerCameraManager* CameraManager = UGameplayStatics::GetPlayerCameraManager(GWorld, 0);
-		for (int32 Fade = 0; Fade <= 100; Fade += 10)
-		{
+    {
+        APlayerCameraManager* CameraManager = UGameplayStatics::GetPlayerCameraManager(GWorld, 0);
+        for (int32 Fade = 0; Fade <= 100; Fade += 10)
+        {
             // Because the WaitSecondsTask can tick between worlds we can't be sure if the Camera Manager
             // is valid all the time.
-			if (IsValid(CameraManager))
-			{
-				CameraManager->SetManualCameraFade((float)Fade * .01f, FColor::Black, false);
-			}
-			co_await CoroWaitSeconds(.1f);
-		}
-	}
+            if (IsValid(CameraManager))
+            {
+                CameraManager->SetManualCameraFade((float)Fade * .01f, FColor::Black, false);
+            }
+            co_await WaitSecondsTask(.1f);
+        }
+    }
 }

@@ -403,7 +403,7 @@ CoroHandle CoroFadeOut()
             {
                 CameraManager->SetManualCameraFade((float)Fade * .01f, FColor::Black, false);
             }
-            co_await CoroWaitSeconds(.1f);
+            co_await WaitSecondsTask(.1f);
         }
     }
 }
@@ -418,7 +418,7 @@ The coroutine Handle is obtained from the `await_suspend` function.
 The `await_suspend` function starts the Unreal Engine ticker which will resume the suspended coroutine using the received coroutine Handle.
 
 ## Fade Out function
-The fade out function changes the camera fade in a for loop in 10 steps every 0.1 second. You can notice the `co_await CoroWaitSeconds(.1f)` after every loop iteration, which triggers our waiting coroutine Task.
+The fade out function changes the camera fade in a for loop in 10 steps every 0.1 second. You can notice the `co_await WaitSecondsTask(.1f)` after every loop iteration, which triggers our waiting coroutine Task.
 
 In order to use this function, simply call it in your project.
 
