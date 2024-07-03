@@ -1,6 +1,6 @@
 // Copyright (c) 2024 Damian Nowakowski. All rights reserved.
 
-// This is the example of c++ coroutine tasks.
+// This is the example of c++ coroutine Awaiters.
 // For more details check: https://github.com/zompi2/cppcorosample
 
 #include <iostream>
@@ -35,9 +35,9 @@ struct CoroPromise
     void unhandled_exception() {}
 };
 
-// Definition of the base coroutine Task
-// It should contain the common part of every task we need
-class CoroTaskBase
+// Definition of the base coroutine Awaiter
+// It should contain the common part of every Awaiter we need
+class CoroAwaiterBase
 {
 public:
 
@@ -48,27 +48,27 @@ public:
     bool await_ready() { return false; }
 };
 
-// Definition of the coroutine Task A
-class CoroTaskA : public CoroTaskBase
+// Definition of the coroutine Awaiter A
+class CoroAwaiterA : public CoroAwaiterBase
 {
 public:
 
-    // Called when the coroutine has been suspended using this Task
+    // Called when the coroutine has been suspended using this Awaiter
     void await_suspend(std::coroutine_handle<CoroPromise> Handle)
     {
-        std::cout << "Suspended Using Task A\n";
+        std::cout << "Suspended Using Awaiter A\n";
     };
 };
 
-// Definition of the coroutine Task B
-class CoroTaskB : public CoroTaskBase
+// Definition of the coroutine Awaiter B
+class CoroAwaiterB : public CoroAwaiterBase
 {
 public:
 
-    // Called when the coroutine has been suspended using this Task
+    // Called when the coroutine has been suspended using this Awaiter
     void await_suspend(std::coroutine_handle<CoroPromise> Handle)
     {
-        std::cout << "Suspended Using Task B\n";
+        std::cout << "Suspended Using Awaiter B\n";
     };
 };
 
@@ -77,13 +77,13 @@ CoroHandle CoroTest()
 {
     std::cout << "CoroTest Before Suspend\n";
 
-    // Suspending the function using Task A
-    co_await CoroTaskA();
+    // Suspending the function using Awaiter A
+    co_await CoroAwaiterA();
 
     std::cout << "CoroTest After First Resume\n";
 
-    // Suspending the function using Task B
-    co_await CoroTaskB();
+    // Suspending the function using Awaiter B
+    co_await CoroAwaiterB();
 
     std::cout << "CoroTest After Second Resume\n";
 }
@@ -111,10 +111,10 @@ int main()
  The program should output:
 
  CoroTest Before Suspend
- Suspended Using Task A
+ Suspended Using Awaiter A
  CoroTest First Resuming
  CoroTest After First Resume
- Suspended Using Task B
+ Suspended Using Awaiter B
  CoroTest Second Resuming
  CoroTest After Second Resume
 */

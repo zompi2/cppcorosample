@@ -1,6 +1,6 @@
 // Copyright (c) 2024 Damian Nowakowski. All rights reserved.
 
-// This is the example of c++ coroutine generators.
+// This is the second example of c++ coroutine generators.
 // For more details check: https://github.com/zompi2/cppcorosample
 
 #include <iostream>
@@ -27,7 +27,7 @@ struct CoroGenerator
 
         // Called in order to construct the Generator
         CoroGenerator get_return_object() { return { CoroGenerator(CoroHandle::from_promise(*this)) }; }
-
+        
         // Suspend the Generator at the beginning
         std::suspend_always initial_suspend() noexcept { return {}; }
 
@@ -73,12 +73,30 @@ struct CoroGenerator
     ~CoroGenerator() { Handle.destroy(); }
 };
 
-// Generator that will count to three
-CoroGenerator<int> CountToThree()
+// Fibonacci Sequence Generator. Yields every next value of the sequence and suspends it's execution.
+CoroGenerator<int> FibonacciGenerator(const int Amount)
 {
-    co_yield 1;
-    co_yield 2;
-    co_yield 3;
+    if (Amount <= 0)
+    {
+        co_return;
+    }
+
+    int n1 = 1;
+    int n2 = 1;
+    for (int i = 1; i <= Amount; i++)
+    {
+        if (i < 3)
+        {
+            co_yield 1;
+        }
+        else
+        {
+            const int tmp = n2;
+            n2 = n1 + n2;
+            n1 = tmp;
+            co_yield n2;
+        }
+    }
 }
 
 // Main program
@@ -86,7 +104,7 @@ int main()
 {
     // Constructs the Generator. Because initial_suspend is set to suspend_always the defined function
     // will not start immediately.
-    auto generator = CountToThree();
+    auto generator = FibonacciGenerator(10);
 
     // Every time a bool() operator is called the Generator resumes it's execution and checks if the coroutine has finished.
     // When the coroutine has finished the wile loop will finish.
@@ -106,5 +124,5 @@ int main()
 /**
  The program should output:
 
- 1 2 3
+ 1 1 2 3 5 8 13 21 34 55
 */
