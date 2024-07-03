@@ -37,7 +37,7 @@ struct CoroPromise
     // Do not suspend when the coroutine ends
     std::suspend_never final_suspend() noexcept { return {}; }
     
-    // Called when co_return is used
+    // Called when co_return void is used
     void return_void() {}
 
     // Called when exception occurs

@@ -43,9 +43,11 @@ Normally the for-loop would simply set the material alpha to 0, but because this
 
 ## Coroutines in C++
 Function is a coroutine in C++ when there is one of the following keywords inside:
-* `co_await` - it simply suspends the function
-* `co_yield` - it suspends the function and returns a value
-* `co_return` - it completes the function with or without returning a value
+* `co_await` - it suspends the coroutine
+* `co_yield` - it suspends the coroutine and returns a value to the coroutine's caller
+* `co_return` - it completes the function with or without returning a value to the coroutine's caller
+
+Coroutine must return a coroutine handle which must satisfies a number of requirements, which will be explained below.
 
 [Back to index](#index)
 
@@ -105,9 +107,9 @@ CoroTest After Resume
 Now let's go through all of this from top to bottom. First of all we have to define the coroutine. The coroutine is made of two parts:
 
 ## Coroutine Handle
-This is a structure based on the `std::coroutine_handle`. It controls the flow of the coroutine and will be used to resume the suspended coroutine later. The absolute minimum which needs to be defined inside the Handle are:
+This is a structure based on the `std::coroutine_handle`. It allows to control the flow of the coroutine. It is always returned by the coroutine to it's caller. It will be used to resume the suspended coroutine later. The absolute minimum which needs to be defined inside the Handle is:
 * `promise_type` - this is a type of the coroutine Promise. What is a Promise will be explained later.
-* `await_resume` - this function is called when the coroutine is resumed. It can return `void` or a value of any type. When returning a value, the value will be obtained when calling `co_await` (e.g. `auto Value = co_await CoroHandle();`)
+* `await_resume` - this function is called when the coroutine is resumed. It can return `void` or a value of any type. When returning a value, the value can be obtained when calling `co_await` (e.g. `auto Value = co_await CoroHandle();`)
 * `await_ready` - this function is called before the coroutine suspension. If it returns `false` the coroutine will be suspended. If it returns `true` it will ignore the suspension.
     > Note: You can also write `void await_ready() {}` and it will behave the same as if it return `false`.
 * `await_suspend` - this function is called right after the suspension. It contains the actual instance of the handle of the suspended coroutine which might be stored and used later.
@@ -116,29 +118,29 @@ This is a structure based on the `std::coroutine_handle`. It controls the flow o
 The Promise structure contains a configuration of the coroutine, which defines how it should behave. The absolute minimum that must be defined here are:
 * `get_return_object` - function which constructs the coroutine handle.
 * `initial_suspend` - can return:
-    * `suspend_never` - the function will not be suspended right at the beginning and it will be suspended when the `co_await` or `co_yield` is used.
-    * `suspend_always` - the function will be suspended right at the beginning and it must be resumed to even start.
+    * `suspend_never` - the coroutine will not be suspended right at the beginning and it will be suspended when the `co_await` or `co_yield` is used.
+    * `suspend_always` - the coroutine will be suspended right at the beginning and it must be resumed to even start.
 * `final_suspend` - can return:
-    * `suspend_never` - the function will not be suspended at the end of the function. The coroutine will be destroyed right after the function has finished.
-    * `suspend_always` - the function will be suspended at the end. You must call `destroy()` function on the handle manually. Only with this setting you can check if the coroutine has finished by using the `done()` function on the handle.
+    * `suspend_never` - the coroutine will not be suspended at the end of the coroutine. The coroutine will be destroyed right after it's finished.
+    * `suspend_always` - the coroutine will be suspended at the end. You must call `destroy()` function on the handle manually. Only with this setting you can check if the coroutine has finished by using the `done()` function on the handle.
     > Note: `initial_suspend` and `final_suspend` are one of the most important functions here, as they can control when the coroutine can be safely destroyed. We will utilize these functions later in more advanced coroutines.
 * `return_void` - this function is called when the `co_return` is used. The `co_return` is called by default when the function reaches the end.
     > Note: A Promise can also implement `return_value`. How to implement it is described **[here](#co_return-value)**.
 * `unhandled_exception` - used to catch any exception. To get more details about the catched extepction use `std::current_exception()` function.
 
 ## Using the coroutine
-Ok, we have a very simple coroutine defined, but how do we use it? In our example we have a function, which returns our coroutine handle, the `CoroHandle`. It uses `co_await` keyword to suspend it's execution. In the `main` program we call this function and gets the `handle` to it. Later, we can use the `resume()` function on that handle to resume the suspended coroutine. And that's all!
+We have a very simple coroutine defined, but how do we use it? In our example we have a function, which returns our coroutine handle, the `CoroHandle`. It uses `co_await` keyword to suspend it's execution. In the `main` program we call this function and get the `handle` to it. Later, we can use the `resume()` function on that handle to resume the suspended coroutine. And that's all!
 
 [Back to index](#index)
 
 # Awaiters
-Awaiters are the elegant way to define different awaiting logic using the same Handle and Promise, reducing the amount of boilerplate code you need to write.
+Awaiters are an elegant way to define different awaiting logics using the same Handle and Promise, reducing the amount of boilerplate code you need to write.
 
 The code below implements two different awaiters: `AwaiterA` and `AwaiterB`. They can be called when using `co_await` in the same coroutine which returns the same type of Handle.
 
-> Note: You can notice that in the previous example the Handle was also the Awaiter. 
+> Note: You can notice that in the previous example the Handle was also an Awaiter. 
 
-This code with comments is also inside the `Samples` directory here: [02_CoroTasks.cpp](Samples/02_CoroTasksExample.cpp)
+This code with comments is also inside the `Samples` directory here: [02_CoroAwaiters.cpp](Samples/02_CoroAwaiters.cpp)
 
 ```c++
 #include <iostream>
@@ -221,7 +223,7 @@ As you can see in this example we can call different Awaiters inside the same co
 [Back to index](#index)
 
 # Generators - coroutines returning values
-Just suspending a running function is neat, but we can do more. Generators are a special type of Awaiters which, when suspended, can store a value. This value can be used later.  
+Just suspending a running function is neat, but we can do more. Generators are a special type of Awaiters which, when suspended, can store a value, which can be used later outside of the coroutine.  
 Let's write a generic Generator and then use it to write some simple counting coroutine.
 
 This code with comments is also inside the `Samples` directory here: [03_CoroGenerators.cpp](Samples/03_CoroGenerators.cpp)
@@ -326,7 +328,8 @@ When Generator is constructed it automatically suspends, because of the `initial
 
 # Fibonacci Generator
 
-We can write a slightly more advanced Generator. This one will yield every next number in the Fibonacci sequence.
+We can write a slightly more advanced Generator. This one will yield every next number in the Fibonacci sequence.  
+This code with comments is also inside the `Samples` directory here: [04_CoroFibonacciGenerator.cpp](Samples/04_CoroFibonacciGenerator.cpp)
 
 ```c++
 CoroGenerator<int> FibonacciGenerator(const int Amount)
@@ -391,10 +394,10 @@ To get this value, get a Promise from the Handle and then get this value
 std::cout << "Returned Value: " << handle.promise().ReturnValue << "\n";
 ```
 
-Important! Remember, that the `final_suspend()` of this awaiter must return `std::suspend_always`, otherwise the Handle after `co_return` will not be valid!
+Important! Remember, that the `final_suspend()` of this awaiter must return `std::suspend_always`, otherwise the Handle after `co_return` will be invalid!
 
 ## co_return value in Generator
-In Generator defining `return_value` is very similar to defining `yield_value`.
+In Generators defining `return_value` is very similar to defining `yield_value`.
 ```cpp
 template<std::convertible_to<T> From>
 void return_value(From&& from)
@@ -407,9 +410,9 @@ The difference between `return_value` and `yield_value` is that `yield_value` wi
 [Back to index](#index)
 
 # Camera Fade Out for Unreal Engine 5
-[At the beginning of this document](#coroutines-in-other-languages) I showed the example of the coroutine used in Unity game engine to fade out the camera. Let's write the same functionality but for Unreal Engine 5.3 which officially supports C++20, so it should be possible to implement it.
+[At the beginning of this document](#coroutines-in-other-languages) I showed the example of the coroutine used in Unity game engine to fade out the camera. Let's write the same functionality but for Unreal Engine 5.3 which officially supports C++20, so it is possible to implement it.
 
-This code with comments is also inside the `Samples` directory here: [04_CoroUE5FadeOut.cpp](Samples/04_CoroUE5FadeOut.cpp)
+This code with comments is also inside the `Samples` directory here: [05_CoroUE5FadeOut.cpp](Samples/05_CoroUE5FadeOut.cpp)
 
 ```c++
 #include <coroutine>
@@ -430,7 +433,7 @@ struct CoroPromise
     void unhandled_exception() {}
 };
 
-class WaitSecondsTask
+class WaitSeconds
 {
 private:
     float TimeRemaining;
@@ -438,7 +441,7 @@ private:
     FTSTicker::FDelegateHandle TickerHandle;
 
 public:
-    WaitSecondsTask(float Time) : TimeRemaining(Time) {}
+    WaitSeconds(float Time) : TimeRemaining(Time) {}
 
     void await_resume() {}
     bool await_ready() { return TimeRemaining <= 0.f; }
@@ -469,21 +472,21 @@ CoroHandle CoroFadeOut()
                 CameraManager->SetManualCameraFade((float)Fade * .01f, FColor::Black, false);
             }
         }
-        co_await WaitSecondsTask(.1f);
+        co_await WaitSeconds(.1f);
     }
 }
 ```
 
-The Handle and the Promise are the same as usual. To make it work we need a coroutine Task, which will suspend the coroutine for a given amount of time and the actual coroutine which will fade out the camera.
+The Handle and the Promise are the same as usual. To make it work we need a coroutine Awaiter, which will suspend the coroutine for a given amount of time and the actual coroutine which will fade out the camera.
 
-## Wait Seconds Task
-This is a specific case of a coroutine Task which resumes itself. It must somehow receive the coroutine Handle and the amount of seconds we want to wait.  
+## Wait Seconds
+This is a specific case of a coroutine Awaiter which resumes itself. It must somehow receive the coroutine Handle and the amount of seconds we want to wait.  
 The time to wait is passed as an argument in the constructor.  
 The coroutine Handle is obtained from the `await_suspend` function.  
 The `await_suspend` function starts the Unreal Engine ticker which will resume the suspended coroutine using the received coroutine Handle.
 
 ## Fade Out function
-The fade out function changes the camera fade in a for loop in 10 steps every 0.1 second. You can notice the `co_await WaitSecondsTask(.1f)` after every loop iteration, which triggers our waiting coroutine Task.
+The fade out function changes the camera fade in a for loop in 10 steps every 0.1 second. You can notice the `co_await WaitSeconds(.1f)` after every loop iteration, which triggers our waiting coroutine Awaiter.
 
 In order to use this function, simply call it in your project.
 
@@ -500,11 +503,10 @@ When using coroutines it is important to be aware that the coroutine doesn't tra
 
 If the owner of the coroutine has been destroyed while the coroutine is suspended, when something resumes the coroutine we will end up in an invalid place in memory.
 
-The solution for game engines like Unreal Engine is to keep a soft reference to the owner which calls the coroutine inside the Awaiter and simply do not resume the coroutine if the reference becomes invalid.  
+The solution for game engines like Unreal Engine is to keep a soft reference to the owner inside the Awaiter and simply do not resume the coroutine if the reference becomes invalid.  
 
 For pure c++ solutions it would require some sort of objects lifetime tracker.  
 
 There is no bad side effect of keeping coroutines suspended forever, because they are stackless and all data required for their resume is stored inside a Handle, which is destroyed when going out of scope.
-
 
 [Back to index](#index)

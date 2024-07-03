@@ -35,8 +35,8 @@ struct CoroPromise
     void unhandled_exception() {}
 };
 
-// Definition of the coroutine Task used for suspending a specific amount of time
-class WaitSecondsTask
+// Definition of the coroutine Awaiter used for suspending a specific amount of time
+class WaitSeconds
 {
 private:
 
@@ -51,8 +51,8 @@ private:
 
 public:
 
-    // Task constructor which stores the amount of time to being suspended
-    WaitSecondsTask(float Time) : TimeRemaining(Time) {}
+    // Awaiter's constructor which stores the amount of time to being suspended
+    WaitSeconds(float Time) : TimeRemaining(Time) {}
 
     // Called when the coroutine has been resumed
     void await_resume() {}
@@ -60,7 +60,7 @@ public:
     // Ignore suspension if the given time is invalid
     bool await_ready() { return TimeRemaining <= 0.f; }
 
-    // Called when the coroutine has been suspended using this Task
+    // Called when the coroutine has been suspended using this Awaiter
     void await_suspend(std::coroutine_handle<CoroPromise> CoroHandle)
     {
         // Remember the coroutine Handle
@@ -92,13 +92,13 @@ CoroHandle CoroFadeOut()
         APlayerCameraManager* CameraManager = UGameplayStatics::GetPlayerCameraManager(GWorld, 0);
         for (int32 Fade = 0; Fade <= 100; Fade += 10)
         {
-            // Because the WaitSecondsTask can tick between worlds we can't be sure if the Camera Manager
+            // Because the WaitSeconds can tick between worlds we can't be sure if the Camera Manager
             // is valid all the time.
             if (IsValid(CameraManager))
             {
                 CameraManager->SetManualCameraFade((float)Fade * .01f, FColor::Black, false);
             }
-            co_await WaitSecondsTask(.1f);
+            co_await WaitSeconds(.1f);
         }
     }
 }
